@@ -55,7 +55,7 @@ Then configure your API keys in `.env` file.
 - **Microphone** (for voice input)
 - **Internet connection** (for API services)
 
-## 🔧 Installation
+## 🔧 Installation Guide
 
 ### 1. Clone or Download the Project
 
