@@ -1,11 +1,12 @@
 #!/bin/bash
 
-# JARVIS Voice Assistant - Setup Script
-# This script installs all required dependencies for the JARVIS voice assistant
+# I.R.I.S Voice Assistant - Setup Script
+# This script installs all required dependencies for the I.R.I.S voice assistant
+# Supports: Ubuntu/Debian (apt), Arch Linux (pacman), Fedora (dnf)
 
-echo "=========================================="
-echo "JARVIS Voice Assistant - Setup"
-echo "=========================================="
+echo "==========================================="
+echo "I.R.I.S Voice Assistant - Setup"
+echo "==========================================="
 echo ""
 
 # Check if running on Linux
@@ -14,24 +15,52 @@ if [[ "$OSTYPE" != "linux-gnu"* ]]; then
     exit 1
 fi
 
+# Detect package manager / distribution
+detect_distro() {
+    if command -v pacman &> /dev/null; then
+        echo "arch"
+    elif command -v apt-get &> /dev/null; then
+        echo "debian"
+    elif command -v dnf &> /dev/null; then
+        echo "fedora"
+    else
+        echo "unknown"
+    fi
+}
+
+DISTRO=$(detect_distro)
+echo "📍 Detected distribution: $DISTRO"
+echo ""
+
 echo "📦 Installing system dependencies..."
 echo ""
 
-# Update package list
-echo "Updating package list..."
-sudo apt-get update
-
-# Install Java 11
-echo "Installing Java 11..."
-sudo apt-get install -y openjdk-11-jdk
-
-# Install Maven
-echo "Installing Maven..."
-sudo apt-get install -y maven
-
-# Install audio dependencies
-echo "Installing audio dependencies..."
-sudo apt-get install -y pulseaudio alsa-utils
+case $DISTRO in
+    arch)
+        echo "Using pacman (Arch Linux)..."
+        sudo pacman -Syu --noconfirm
+        sudo pacman -S --noconfirm jdk11-openjdk maven pulseaudio alsa-utils
+        # Set Java 11 as default
+        sudo archlinux-java set java-11-openjdk
+        ;;
+    debian)
+        echo "Using apt-get (Ubuntu/Debian)..."
+        sudo apt-get update
+        sudo apt-get install -y openjdk-11-jdk maven pulseaudio alsa-utils
+        ;;
+    fedora)
+        echo "Using dnf (Fedora)..."
+        sudo dnf update -y
+        sudo dnf install -y java-11-openjdk java-11-openjdk-devel maven pulseaudio alsa-utils
+        ;;
+    *)
+        echo "❌ Unsupported distribution. Please install manually:"
+        echo "   - Java 11 (OpenJDK)"
+        echo "   - Maven"
+        echo "   - PulseAudio and ALSA utilities"
+        exit 1
+        ;;
+esac
 
 # Verify installations
 echo ""

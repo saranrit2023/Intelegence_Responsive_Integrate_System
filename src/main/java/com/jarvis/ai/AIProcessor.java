@@ -8,8 +8,10 @@ import com.google.gson.JsonParser;
 import com.google.gson.JsonArray;
 
 import java.io.IOException;
+import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * AI Processing with support for online (Gemini/Grok) and offline (Ollama) LLMs
@@ -26,6 +28,11 @@ public class AIProcessor {
     private final String ollamaUrl;
     private final String ollamaModel;
     
+    // Timeout settings (in seconds)
+    private static final int CONNECT_TIMEOUT = 15;
+    private static final int READ_TIMEOUT_ONLINE = 30;
+    private static final int READ_TIMEOUT_OLLAMA = 120; // Ollama can be slow
+    
     // Manual mode control
     private boolean manualModeEnabled = false;
     private String manualModeSelection = "auto"; // "gemini", "grok", "ollama", or "auto"
@@ -39,7 +46,13 @@ public class AIProcessor {
     
     public AIProcessor() {
         this.config = Config.getInstance();
-        this.httpClient = new OkHttpClient();
+        // Configure HTTP client with sensible timeouts
+        this.httpClient = new OkHttpClient.Builder()
+            .connectTimeout(CONNECT_TIMEOUT, TimeUnit.SECONDS)
+            .readTimeout(READ_TIMEOUT_ONLINE, TimeUnit.SECONDS)
+            .writeTimeout(CONNECT_TIMEOUT, TimeUnit.SECONDS)
+            .retryOnConnectionFailure(true)
+            .build();
         this.networkChecker = NetworkChecker.getInstance();
         this.geminiApiKey = config.getGeminiApiKey();
         this.grokApiKey = config.getGrokApiKey();
@@ -162,6 +175,10 @@ public class AIProcessor {
      * Process query using local Ollama LLM (offline)
      */
     private String processWithOllama(String query) {
+        if (query == null || query.trim().isEmpty()) {
+            return "I didn't receive a valid query. Please try again.";
+        }
+        
         try {
             // Build the request JSON for Ollama
             JsonObject requestJson = new JsonObject();
@@ -186,21 +203,38 @@ public class AIProcessor {
                 .post(body)
                 .build();
             
-            // Execute request with timeout (120s for large models)
+            // Execute request with extended timeout for large models
             OkHttpClient clientWithTimeout = httpClient.newBuilder()
-                .readTimeout(120, java.util.concurrent.TimeUnit.SECONDS)
+                .readTimeout(READ_TIMEOUT_OLLAMA, TimeUnit.SECONDS)
                 .build();
             
             try (Response response = clientWithTimeout.newCall(request).execute()) {
                 if (!response.isSuccessful()) {
-                    return "I'm having trouble connecting to my offline AI system. " +
-                           "Make sure Ollama is running (try: ollama serve)";
+                    int code = response.code();
+                    if (code == 404) {
+                        return "Ollama model '" + ollamaModel + "' not found. " +
+                               "Try: ollama pull " + ollamaModel;
+                    } else if (code >= 500) {
+                        return "Ollama server error. Please restart Ollama: ollama serve";
+                    }
+                    return "I'm having trouble connecting to Ollama (error " + code + "). " +
+                           "Make sure Ollama is running: ollama serve";
                 }
                 
-                String responseBody = response.body().string();
+                String responseBody = response.body() != null ? response.body().string() : null;
+                if (responseBody == null || responseBody.isEmpty()) {
+                    return "I received an empty response from Ollama. Please try again.";
+                }
                 return parseOllamaResponse(responseBody);
             }
             
+        } catch (SocketTimeoutException e) {
+            System.err.println("Ollama timeout: " + e.getMessage());
+            return "The AI is taking too long to respond. The model might be loading. " +
+                   "Please try again in a moment.";
+        } catch (java.net.ConnectException e) {
+            System.err.println("Cannot connect to Ollama: " + e.getMessage());
+            return "Cannot connect to Ollama. Please start it with: ollama serve";
         } catch (IOException e) {
             System.err.println("Error calling Ollama: " + e.getMessage());
             return "I'm having trouble with my offline AI system. " +
