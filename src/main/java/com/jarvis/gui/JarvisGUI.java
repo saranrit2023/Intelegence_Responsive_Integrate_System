@@ -28,7 +28,9 @@ public class JarvisGUI extends JFrame {
     private JTextField inputField;
     private JButton sendButton;
     private JButton voiceButton;
-    private JButton aiModeButton;
+    private JButton grokButton;      // Grok AI button (primary)
+    private JButton geminiButton;    // Gemini AI button (secondary)
+    private JButton ollamaButton;    // Ollama AI button (tertiary)
     private JLabel statusLabel;
     private JLabel networkStatusLabel;
     private JPanel statusIndicatorPanel;
@@ -202,10 +204,32 @@ public class JarvisGUI extends JFrame {
         controlsPanel.setLayout(new BoxLayout(controlsPanel, BoxLayout.Y_AXIS));
         controlsPanel.setOpaque(false);
         
-        // AI Mode Button
-        aiModeButton = createGlowButton(getAIModeButtonText(), NEON_BLUE);
-        aiModeButton.addActionListener(e -> toggleAIMode());
-        aiModeButton.setAlignmentX(Component.RIGHT_ALIGNMENT);
+        // AI Mode Buttons Panel - Three buttons: Grok → Gemini → Ollama
+        JPanel aiButtonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
+        aiButtonPanel.setOpaque(false);
+        
+        // Grok Button (primary/default)
+        grokButton = createGlowButton("🎯 Grok", new Color(255, 100, 50));
+        grokButton.setPreferredSize(new Dimension(90, 32));
+        grokButton.addActionListener(e -> switchToGrok());
+        
+        // Gemini Button (secondary)
+        geminiButton = createGlowButton("🌐 Gemini", NEON_BLUE);
+        geminiButton.setPreferredSize(new Dimension(90, 32));
+        geminiButton.addActionListener(e -> switchToGemini());
+        
+        // Ollama Button (tertiary/offline)
+        ollamaButton = createGlowButton("🤖 Ollama", new Color(50, 200, 100));
+        ollamaButton.setPreferredSize(new Dimension(90, 32));
+        ollamaButton.addActionListener(e -> switchToOllama());
+        
+        // Update button appearances based on current mode
+        updateAIButtonStates();
+        
+        aiButtonPanel.add(grokButton);
+        aiButtonPanel.add(geminiButton);
+        aiButtonPanel.add(ollamaButton);
+        aiButtonPanel.setAlignmentX(Component.RIGHT_ALIGNMENT);
         
         // Network Status
         JPanel networkPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
@@ -239,7 +263,7 @@ public class JarvisGUI extends JFrame {
         networkPanel.add(networkStatusLabel);
         networkPanel.setAlignmentX(Component.RIGHT_ALIGNMENT);
         
-        controlsPanel.add(aiModeButton);
+        controlsPanel.add(aiButtonPanel);
         controlsPanel.add(Box.createVerticalStrut(8));
         controlsPanel.add(networkPanel);
         
@@ -676,22 +700,41 @@ public class JarvisGUI extends JFrame {
         worker.execute();
     }
     
-    private void toggleAIMode() {
-        String currentMode = aiProcessor.getCurrentMode();
-        String newMode = currentMode.equals("gemini") ? "ollama" : "gemini";
-        aiProcessor.setManualMode(true, newMode);
-        appendMessage("SYSTEM", "AI Mode switched to: " + newMode.toUpperCase(), TEXT_ACCENT);
-        aiModeButton.setText(getAIModeButtonText());
+    private void switchToGrok() {
+        aiProcessor.setManualMode(true, "grok");
+        appendMessage("SYSTEM", "🎯 Switched to GROK (primary AI)", new Color(255, 100, 50));
+        updateAIButtonStates();
     }
     
-    private String getAIModeButtonText() {
+    private void switchToGemini() {
+        aiProcessor.setManualMode(true, "gemini");
+        appendMessage("SYSTEM", "🌐 Switched to GEMINI (secondary AI)", NEON_BLUE);
+        updateAIButtonStates();
+    }
+    
+    private void switchToOllama() {
+        aiProcessor.setManualMode(true, "ollama");
+        appendMessage("SYSTEM", "🤖 Switched to OLLAMA (offline AI)", new Color(50, 200, 100));
+        updateAIButtonStates();
+    }
+    
+    private void updateAIButtonStates() {
         String mode = aiProcessor.getCurrentMode();
-        boolean isManual = aiProcessor.isManualMode();
-        if (mode.equals("gemini")) {
-            return isManual ? "🌐 Gemini" : "🌐 Auto";
-        } else {
-            return isManual ? "🤖 Ollama" : "🤖 Auto";
-        }
+        SwingUtilities.invokeLater(() -> {
+            // Reset all buttons
+            grokButton.setText("🎯 Grok");
+            geminiButton.setText("🌐 Gemini");
+            ollamaButton.setText("🤖 Ollama");
+            
+            // Highlight the active one
+            if (mode.equals("grok")) {
+                grokButton.setText("✓ Grok");
+            } else if (mode.equals("gemini")) {
+                geminiButton.setText("✓ Gemini");
+            } else if (mode.equals("ollama")) {
+                ollamaButton.setText("✓ Ollama");
+            }
+        });
     }
     
     private void startNetworkStatusUpdater() {
@@ -700,9 +743,7 @@ public class JarvisGUI extends JFrame {
             SwingUtilities.invokeLater(() -> {
                 networkStatusLabel.setText(aiProcessor.getNetworkStatus());
                 statusIndicatorPanel.repaint();
-                if (!aiProcessor.isManualMode()) {
-                    aiModeButton.setText(getAIModeButtonText());
-                }
+                updateAIButtonStates();
             });
         });
         timer.start();

@@ -63,16 +63,9 @@ public class AIProcessor {
         this.ollamaUrl = config.getProperty("ai.ollama.url", DEFAULT_OLLAMA_URL);
         this.ollamaModel = config.getProperty("ai.ollama.model", "llama2");
         
-        // Check for legacy offline mode setting
-        boolean legacyOfflineMode = config.getProperty("ai.offline.mode", "false").equalsIgnoreCase("true");
-        if (legacyOfflineMode) {
-            setManualMode(true, "ollama");
-            System.out.println("🤖 AI Mode: MANUAL OFFLINE (using Ollama with model: " + ollamaModel + ")");
-        } else {
-            System.out.println("🔄 AI Mode: AUTO (will switch based on network)");
-            System.out.println("   Online AIs: Gemini + Grok (round-robin)");
-            System.out.println("   Current: " + getCurrentMode().toUpperCase());
-        }
+        // DEFAULT TO GROK (primary AI) - Priority: Grok → Gemini → Ollama
+        setManualMode(true, "grok");
+        System.out.println("🎯 AI Mode: GROK (default) - Use GUI buttons to switch to Gemini/Ollama");
     }
     
     /**

@@ -5,6 +5,7 @@ import com.jarvis.services.WeatherService;
 import com.jarvis.speech.TextToSpeech;
 import com.jarvis.security.FileAnalyzer;
 import com.jarvis.security.LinkChecker;
+import com.jarvis.security.NetworkAnalyzer;
 import com.jarvis.security.PentestingTools;
 
 import java.time.LocalDateTime;
@@ -21,6 +22,7 @@ public class CommandHandler {
     private final AppAutomation appAutomation;
     private final FileAnalyzer fileAnalyzer;
     private final LinkChecker linkChecker;
+    private final NetworkAnalyzer networkAnalyzer;
     private final PentestingTools pentestingTools;
     private final TextToSpeech tts;
     
@@ -32,6 +34,7 @@ public class CommandHandler {
         this.appAutomation = new AppAutomation();
         this.fileAnalyzer = new FileAnalyzer();
         this.linkChecker = new LinkChecker();
+        this.networkAnalyzer = new NetworkAnalyzer();
         this.pentestingTools = new PentestingTools();
         this.tts = tts;
     }
@@ -146,8 +149,20 @@ public class CommandHandler {
             return handlePasswordCrack(command);
         }
         if (command.contains("capture packets") || command.contains("unwanted packets") ||
-            command.contains("packet analysis") || command.contains("wire shark")) {
-            return handlePacketCapture(command);
+            command.contains("packet analysis") || command.contains("wire shark") ||
+            command.contains("network report") || command.contains("analyze network") ||
+            command.contains("check network") || command.contains("unauthorized access") ||
+            command.contains("network security") || command.contains("scan my network") ||
+            command.contains("http traffic") || command.contains("analyze http") ||
+            command.contains("extract credentials") || command.contains("find credentials") ||
+            command.contains("analyze dns") || command.contains("dns analysis") ||
+            command.contains("follow tcp") || command.contains("tcp stream") ||
+            command.contains("sensitive data") || command.contains("data leak") ||
+            command.contains("ssl certificate") || command.contains("tls certificate") ||
+            command.contains("extract files") || command.contains("http objects") ||
+            command.contains("bug bounty") || command.contains("bugbounty") ||
+            command.contains("pentest network") || command.contains("network pentest")) {
+            return handleNetworkAnalysis(command);
         }
         if (command.contains("enumerate directories") || command.contains("directory scan")) {
             return handleDirectoryEnum(command);
@@ -575,20 +590,20 @@ public class CommandHandler {
     }
     
     /**
-     * Handle packet capture command
+     * Handle network analysis commands (packet capture, scanning, unauthorized access detection)
      */
-    private String handlePacketCapture(String command) {
-        // Parse: "capture packets on eth0 for 60 seconds"
-        // User specific request: "check for unwanted packets" -> open Wireshark
-        if (command.contains("open") || command.contains("gui") || 
-            command.contains("unwanted packets") || command.contains("wire shark")) {
+    private String handleNetworkAnalysis(String command) {
+        // Open Wireshark GUI only when explicitly requested
+        if (command.contains("open wireshark") || command.contains("open wire shark") ||
+            (command.contains("gui") && command.contains("wireshark"))) {
             return systemCommands.openApplication("wireshark");
         }
         
+        // Parse interface and duration from command
         String[] parts = command.split("\\s+");
-        
-        String iface = "eth0";
-        int duration = 30;
+        String iface = null; // Will auto-detect if not specified
+        int duration = 15; // Default capture duration
+        String targetIP = null;
         
         for (int i = 0; i < parts.length; i++) {
             if (parts[i].equals("on") && i + 1 < parts.length) {
@@ -601,9 +616,134 @@ public class CommandHandler {
                     // Keep default
                 }
             }
+            // Check for IP address pattern
+            if (parts[i].matches("\\d+\\.\\d+\\.\\d+\\.\\d+")) {
+                targetIP = parts[i];
+            }
         }
         
-        return pentestingTools.capturePackets(iface, duration);
+        // Network status report
+        if (command.contains("network report") || command.contains("network status")) {
+            String report = networkAnalyzer.getNetworkReport(iface);
+            System.out.println(report);
+            return "📊 Network report generated. Check console for details.";
+        }
+        
+        // Bug bounty comprehensive scan
+        if (command.contains("bug bounty") || command.contains("bugbounty") || 
+            command.contains("pentest network") || command.contains("network pentest")) {
+            String report = networkAnalyzer.bugBountyScan(iface, duration);
+            System.out.println(report);
+            return "🎯 Bug bounty scan complete! Check console for detailed report.";
+        }
+        
+        // HTTP traffic analysis
+        if (command.contains("http traffic") || command.contains("analyze http") ||
+            command.contains("http analysis")) {
+            String report = networkAnalyzer.analyzeHTTPTraffic(iface, duration);
+            System.out.println(report);
+            return "🌐 HTTP traffic analysis complete. Check console for details.";
+        }
+        
+        // Credential extraction
+        if (command.contains("extract credentials") || command.contains("find credentials") ||
+            command.contains("capture credentials") || command.contains("sniff password")) {
+            String report = networkAnalyzer.extractCredentials(iface, duration);
+            System.out.println(report);
+            return "🔑 Credential scan complete. Check console for findings.";
+        }
+        
+        // DNS analysis
+        if (command.contains("analyze dns") || command.contains("dns analysis") ||
+            command.contains("dns traffic") || command.contains("check dns")) {
+            String report = networkAnalyzer.analyzeDNS(iface, duration);
+            System.out.println(report);
+            return "🔍 DNS analysis complete. Check console for details.";
+        }
+        
+        // Follow TCP stream
+        if (command.contains("follow tcp") || command.contains("tcp stream") ||
+            command.contains("follow stream")) {
+            String report = networkAnalyzer.followTCPStream(iface, targetIP, duration);
+            System.out.println(report);
+            return "📡 TCP stream capture complete. Check console for data.";
+        }
+        
+        // Sensitive data leak detection
+        if (command.contains("sensitive data") || command.contains("data leak") ||
+            command.contains("api key") || command.contains("find secret")) {
+            String report = networkAnalyzer.detectSensitiveDataLeaks(iface, duration);
+            System.out.println(report);
+            return "🔐 Sensitive data scan complete. Check console for findings.";
+        }
+        
+        // SSL/TLS certificate analysis
+        if (command.contains("ssl certificate") || command.contains("tls certificate") ||
+            command.contains("analyze ssl") || command.contains("check certificate")) {
+            String report = networkAnalyzer.analyzeSSLCertificates(iface, duration);
+            System.out.println(report);
+            return "🔒 SSL/TLS certificate analysis complete. Check console.";
+        }
+        
+        // Extract HTTP objects/files
+        if (command.contains("extract files") || command.contains("http objects") ||
+            command.contains("extract objects") || command.contains("download files")) {
+            String report = networkAnalyzer.extractHTTPObjects(iface, duration);
+            System.out.println(report);
+            return "📦 HTTP object extraction complete. Check console for saved files.";
+        }
+        
+        // Unauthorized access / security scan
+        if (command.contains("unauthorized") || command.contains("security") ||
+            command.contains("suspicious") || command.contains("intrusion")) {
+            System.out.println("\n🔒 Scanning for unauthorized access and suspicious activity...");
+            NetworkAnalyzer.NetworkReport report = networkAnalyzer.detectUnauthorizedAccess(iface, duration);
+            String formattedReport = report.toFormattedString();
+            System.out.println(formattedReport);
+            
+            if (report.hasError()) {
+                return "❌ " + report.getError();
+            }
+            
+            int findingsCount = report.getSuspiciousFindings().size();
+            if (findingsCount == 0) {
+                return "✅ Security scan complete. No unauthorized access or suspicious activity detected. " +
+                       "Analyzed " + report.getTotalPackets() + " packets.";
+            } else {
+                return "⚠️ Security scan complete. Found " + findingsCount + " potential issue(s). " +
+                       "Check console for detailed report.";
+            }
+        }
+        
+        // Default: General network scan and analysis
+        System.out.println("\n📡 Starting network scan and analysis...");
+        NetworkAnalyzer.NetworkReport report = networkAnalyzer.captureAndAnalyze(iface, duration);
+        String formattedReport = report.toFormattedString();
+        System.out.println(formattedReport);
+        
+        if (report.hasError()) {
+            return "❌ " + report.getError();
+        }
+        
+        StringBuilder summary = new StringBuilder();
+        summary.append("📡 Network scan complete! Captured ").append(report.getTotalPackets()).append(" packets. ");
+        summary.append("Found ").append(report.getActiveIPs().size()).append(" active IPs. ");
+        
+        if (!report.getSuspiciousFindings().isEmpty()) {
+            summary.append("⚠️ ").append(report.getSuspiciousFindings().size()).append(" finding(s) detected. ");
+        } else {
+            summary.append("✅ No suspicious activity. ");
+        }
+        summary.append("Check console for full report.");
+        
+        return summary.toString();
+    }
+    
+    /**
+     * Handle packet capture command (legacy - now redirects to handleNetworkAnalysis)
+     */
+    private String handlePacketCapture(String command) {
+        return handleNetworkAnalysis(command);
     }
     
     /**
